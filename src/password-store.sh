@@ -157,7 +157,8 @@ clip() {
 	pkill -f "^$sleep_argv0" 2>/dev/null && sleep 0.5
 	local before_p="$(xclip -o -selection primary 2>/dev/null | base64)"
 	local before_c="$(xclip -o -selection clipboard 2>/dev/null | base64)"
-	echo -n "$1" | xclip -selection primary | xclip -selection clipboard || die "Error: Could not copy data to the clipboard"
+	echo -n "$1" | xclip -selection primary || die "Error: Could not copy data to primary"
+	echo -n "$1" | xclip -selection clipboard || die "Error: Could not copy data to clipboard"
 	(
 		( exec -a "$sleep_argv0" bash <<<"trap 'kill %1' TERM; sleep '$CLIP_TIME' & wait" )
 		local now_p="$(xclip -o -selection primary | base64)"
@@ -228,7 +229,6 @@ tmpdir() {
 GETOPT="getopt"
 SHRED="shred -f -z"
 
-source "$(dirname "$0")/platform/$(uname | cut -d _ -f 1 | tr '[:upper:]' '[:lower:]').sh" 2>/dev/null # PLATFORM_FUNCTION_FILE
 
 #
 # END platform definable
@@ -656,7 +656,7 @@ cmd_extension_or_show() {
 	fi
 }
 
-SYSTEM_EXTENSION_DIR=""
+SYSTEM_EXTENSION_DIR="/usr/lib/password-store/extensions"
 cmd_extension() {
 	check_sneaky_paths "$1"
 	local user_extension system_extension extension
