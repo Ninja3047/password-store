@@ -14,7 +14,6 @@ which gpg2 &>/dev/null && GPG="gpg2"
 
 PREFIX="${PASSWORD_STORE_DIR:-$HOME/.password-store}"
 EXTENSIONS="${PASSWORD_STORE_EXTENSIONS_DIR:-$PREFIX/.extensions}"
-X_SELECTION="${PASSWORD_STORE_X_SELECTION:-clipboard}"
 CLIP_TIME="${PASSWORD_STORE_CLIP_TIME:-45}"
 GENERATED_LENGTH="${PASSWORD_STORE_GENERATED_LENGTH:-25}"
 CHARACTER_SET="${PASSWORD_STORE_CHARACTER_SET:-[:graph:]}"
@@ -156,12 +155,15 @@ clip() {
 	# trailing new lines.
 	local sleep_argv0="password store sleep on display $DISPLAY"
 	pkill -f "^$sleep_argv0" 2>/dev/null && sleep 0.5
-	local before="$(xclip -o -selection "$X_SELECTION" 2>/dev/null | base64)"
-	echo -n "$1" | xclip -selection "$X_SELECTION" || die "Error: Could not copy data to the clipboard"
+	local before_p="$(xclip -o -selection primary 2>/dev/null | base64)"
+	local before_c="$(xclip -o -selection clipboard 2>/dev/null | base64)"
+	echo -n "$1" | xclip -selection primary | xclip -selection clipboard || die "Error: Could not copy data to the clipboard"
 	(
 		( exec -a "$sleep_argv0" bash <<<"trap 'kill %1' TERM; sleep '$CLIP_TIME' & wait" )
-		local now="$(xclip -o -selection "$X_SELECTION" | base64)"
-		[[ $now != $(echo -n "$1" | base64) ]] && before="$now"
+		local now_p="$(xclip -o -selection primary | base64)"
+		local now_c="$(xclip -o -selection clipboard | base64)"
+		[[ $now_p != $(echo -n "$1" | base64) ]] && before_p="$now_p"
+		[[ $now_c != $(echo -n "$1" | base64) ]] && before_c="$now_c"
 
 		# It might be nice to programatically check to see if klipper exists,
 		# as well as checking for other common clipboard managers. But for now,
@@ -172,7 +174,8 @@ clip() {
 		# so we axe it here:
 		qdbus org.kde.klipper /klipper org.kde.klipper.klipper.clearClipboardHistory &>/dev/null
 
-		echo "$before" | base64 -d | xclip -selection "$X_SELECTION"
+		echo "$before_p" | base64 -d | xclip -selection primary
+		echo "$before_c" | base64 -d | xclip -selection clipboard
 	) 2>/dev/null & disown
 	echo "Copied $2 to clipboard. Will clear in $CLIP_TIME seconds."
 }
